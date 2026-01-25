@@ -1,1 +1,84 @@
+# =========================
+# 1. 基础环境 (不可修改)
+# =========================
+tproxy-port: 7893
+mixed-port: 7890
+allow-lan: true
+bind-address: "*"
+ipv6: false
+log-level: info
+external-controller: 0.0.0.0:9090
+external-ui: "ui"
+secret: "123456"
 
+# =========================
+# 2. DNS (VPS专用)
+# =========================
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  nameserver:
+    - https://8.8.8.8/dns-query
+    - https://1.1.1.1/dns-query
+  direct-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+
+# =========================
+# 3. 节点提取器
+# =========================
+proxy-providers:
+  UserSub:
+    type: http
+    # ▼▼▼ 脚本锚点，绝对不要改下面这一行 ▼▼▼
+    url: "INSERT_LINK_HERE" # [SUBLINK]
+    path: ./sub/usersub.yaml
+    interval: 3600
+    health-check:
+      enable: true
+      interval: 600
+      url: http://www.gstatic.com/generate_204
+
+# =========================
+# 4. 策略组
+# =========================
+proxy-groups:
+  - name: 🚀 节点选择
+    type: select
+    use:
+      - UserSub
+
+  - name: ⚡ 自动测速
+    type: url-test
+    use:
+      - UserSub
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+
+  - name: 🤖 OpenAI
+    type: select
+    proxies:
+      - 🚀 节点选择
+
+# =========================
+# 5. 分流规则
+# =========================
+rules:
+  # --- 防失联区 ---
+  - DST-PORT,22,DIRECT
+  
+  # --- 防回环区 ---
+  - DST-PORT,7890,DIRECT
+  - DST-PORT,7893,DIRECT
+  - DST-PORT,9090,DIRECT
+
+  # --- 规则区 ---
+  - GEOSITE,openai,🤖 OpenAI
+  - GEOSITE,cn,DIRECT
+  - GEOIP,cn,DIRECT
+  - GEOIP,private,DIRECT
+  
+  # --- 兜底 ---
+  - MATCH,🚀 节点选择

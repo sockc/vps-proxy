@@ -30,14 +30,26 @@ check_status() {
     fi
 }
 
-# [修正] 获取面板信息
+# [核心修复] 获取面板信息 - 增强版
 get_panel_info() {
-    # 修正点：使用 $NF 获取最后一部分，这样 0.0.0.0:9090 也能正确拿到 9090
-    UI_PORT=$(grep "^external-controller" $CONFIG_FILE | awk -F: '{print $NF}' | tr -d ' "')
-    UI_SECRET=$(grep "^secret" $CONFIG_FILE | awk -F: '{print $2}' | tr -d ' "')
+    # 1. 提取 external-controller 这一行，并去除所有引号
+    LINE=$(grep "^external-controller" "$CONFIG_FILE" | tr -d '"' | tr -d "'")
+    
+    # 2. 使用 awk 提取最后一个冒号后面的内容，并只保留数字
+    # 逻辑：以冒号分隔，取最后一个字段($NF)，然后用 grep 提取纯数字
+    UI_PORT=$(echo "$LINE" | awk -F: '{print $NF}' | grep -oE '[0-9]+')
+    
+    # 3. 提取密钥 (同样去除引号)
+    UI_SECRET=$(grep "^secret" "$CONFIG_FILE" | awk -F: '{print $2}' | tr -d ' "' | tr -d "'")
+    
+    # 4. 获取 IP
     PUBLIC_IP=$(curl -s4m 2 https://api.ip.sb/ip || echo "你的IP")
     
-    if [ -z "$UI_PORT" ]; then UI_PORT="9090"; fi
+    # 5. 兜底逻辑：如果提取失败或提取到了0.0.0.0，强制设为 9090
+    if [ -z "$UI_PORT" ] || [ "$UI_PORT" == "0.0.0.0" ]; then 
+        UI_PORT="9090"
+    fi
+    
     if [ -z "$UI_SECRET" ]; then UI_SECRET="未知"; fi
 }
 

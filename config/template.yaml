@@ -5,6 +5,8 @@ tproxy-port: 7893
 mixed-port: 7890
 allow-lan: true
 bind-address: "*"
+authentication:
+- "user:pass1234"  # 格式是 "账号:密码"
 ipv6: false
 log-level: info
 external-controller: 0.0.0.0:9090

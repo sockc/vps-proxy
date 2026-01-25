@@ -1,5 +1,5 @@
 # =========================
-# 1. 基础环境 (不可修改)
+# 1. 基础环境设置
 # =========================
 tproxy-port: 7893
 mixed-port: 7890
@@ -12,15 +12,18 @@ external-ui: "ui"
 secret: "123456"
 
 # =========================
-# 2. DNS (VPS专用)
+# 2. DNS 设置
 # =========================
 dns:
   enable: true
   listen: 0.0.0.0:1053
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
   nameserver:
-    - https://8.8.8.8/dns-query
+    - https://dns.google/dns-query
     - https://1.1.1.1/dns-query
   direct-nameserver:
     - 223.5.5.5
@@ -32,7 +35,7 @@ dns:
 proxy-providers:
   UserSub:
     type: http
-    # ▼▼▼ 脚本锚点，绝对不要改下面这一行 ▼▼▼
+    # ▼▼▼ 脚本锚点，请勿修改下一行 ▼▼▼
     url: "INSERT_LINK_HERE" # [SUBLINK]
     path: ./sub/usersub.yaml
     interval: 3600
@@ -42,43 +45,144 @@ proxy-providers:
       url: http://www.gstatic.com/generate_204
 
 # =========================
-# 4. 策略组
+# 4. 策略组 (高度定制化)
 # =========================
 proxy-groups:
+  # --- 核心：主手动选择 ---
   - name: 🚀 节点选择
     type: select
     use:
       - UserSub
 
-  - name: ⚡ 自动测速
+  # --- 核心：主自动优选 ---
+  - name: ⚡ 自动优选
     type: url-test
-    use:
-      - UserSub
     url: http://www.gstatic.com/generate_204
     interval: 300
+    tolerance: 50
+    use:
+      - UserSub
 
-  - name: 🤖 OpenAI
+  # === 独立应用分组 ===
+  
+  # [YouTube] 建议选大宽带节点
+  - name: 📹 YouTube
     type: select
     proxies:
       - 🚀 节点选择
+      - ⚡ 自动优选
+    use:
+      - UserSub
+
+  # [Spotify] 建议选低价区节点 (如印度/菲律宾)
+  - name: 🎵 Spotify
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use:
+      - UserSub
+
+  # [PayPal] 建议手动选固定IP，或直连
+  - name: 💳 PayPal
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - DIRECT
+    use:
+      - UserSub
+
+  # === 其他业务分组 ===
+
+  # [AI] OpenAI/Claude/Gemini
+  - name: 🤖 AI & Copilot
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use:
+      - UserSub
+
+  # [其他流媒体] Netflix/Disney+/Porn
+  - name: 📺 其他流媒体
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use:
+      - UserSub
+
+  # [其他金融] 币安/OKX
+  - name: 💰 虚拟货币
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - DIRECT
+    use:
+      - UserSub
+
+  # [电报]
+  - name: 📲 电报消息
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use:
+      - UserSub
+
+  # [兜底]
+  - name: 🐟 漏网之鱼
+    type: select
+    proxies:
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use:
+      - UserSub
 
 # =========================
 # 5. 分流规则
 # =========================
 rules:
-  # --- 防失联区 ---
+  # --- 基础规则 ---
   - DST-PORT,22,DIRECT
-  
-  # --- 防回环区 ---
+  - DST-PORT,9090,DIRECT
   - DST-PORT,7890,DIRECT
   - DST-PORT,7893,DIRECT
-  - DST-PORT,9090,DIRECT
 
-  # --- 规则区 ---
-  - GEOSITE,openai,🤖 OpenAI
+  # --- 独立应用优先匹配 ---
+  - GEOSITE,youtube,📹 YouTube
+  - GEOSITE,spotify,🎵 Spotify
+  - GEOSITE,paypal,💳 PayPal
+
+  # --- AI ---
+  - GEOSITE,openai,🤖 AI & Copilot
+  - GEOSITE,anthropic,🤖 AI & Copilot
+  - GEOSITE,google-gemini,🤖 AI & Copilot
+  - GEOSITE,github,🤖 AI & Copilot
+
+  # --- 其他流媒体 ---
+  - GEOSITE,netflix,📺 其他流媒体
+  - GEOSITE,disney,📺 其他流媒体
+  - GEOSITE,category-porn,📺 其他流媒体
+
+  # --- 虚拟货币 ---
+  - GEOSITE,category-cryptocurrency,💰 虚拟货币
+  - GEOSITE,binance,💰 虚拟货币
+  - GEOSITE,okx,💰 虚拟货币
+
+  # --- 社媒通讯 ---
+  - GEOSITE,telegram,📲 电报消息
+  - GEOIP,telegram,📲 电报消息
+
+  # --- Google & Microsoft ---
+  - GEOSITE,google,🚀 节点选择
+  - GEOSITE,microsoft,🚀 节点选择
+
+  # --- 国内直连 ---
   - GEOSITE,cn,DIRECT
   - GEOIP,cn,DIRECT
   - GEOIP,private,DIRECT
-  
+
   # --- 兜底 ---
-  - MATCH,🚀 节点选择
+  - GEOSITE,geolocation-!cn,🐟 漏网之鱼
+  - MATCH,🐟 漏网之鱼

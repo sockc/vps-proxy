@@ -30,9 +30,10 @@ check_status() {
     fi
 }
 
-# 获取面板信息
+# [修正] 获取面板信息
 get_panel_info() {
-    UI_PORT=$(grep "^external-controller" $CONFIG_FILE | awk -F: '{print $2}' | tr -d ' "')
+    # 修正点：使用 $NF 获取最后一部分，这样 0.0.0.0:9090 也能正确拿到 9090
+    UI_PORT=$(grep "^external-controller" $CONFIG_FILE | awk -F: '{print $NF}' | tr -d ' "')
     UI_SECRET=$(grep "^secret" $CONFIG_FILE | awk -F: '{print $2}' | tr -d ' "')
     PUBLIC_IP=$(curl -s4m 2 https://api.ip.sb/ip || echo "你的IP")
     
@@ -41,7 +42,6 @@ get_panel_info() {
 }
 
 # ================= 核心功能：防火墙 (TProxy) =================
-# 这是实现透明代理的核心，绝对不能删
 function start_tproxy() {
     sysctl -w net.ipv4.ip_forward=1 > /dev/null
     IFACE=$(ip route show default | awk '/default/ {print $5}' | head -n1)
@@ -83,7 +83,6 @@ function set_subscribe() {
     read -p "请输入订阅链接(http开头): " USER_LINK
     if [ -z "$USER_LINK" ]; then echo "❌ 输入为空"; return; fi
     
-    # 使用 | 作为分隔符进行替换
     sed -i "s|.*# \[SUBLINK\]|    url: \"$USER_LINK\" # [SUBLINK]|" "$CONFIG_FILE"
     
     echo "✅ 订阅已写入，正在重启服务..."
@@ -147,8 +146,6 @@ function manage_swap() {
         echo "✅ Swap 已删除"
     fi
 }
-
-# ================= 新增功能：重置与卸载 =================
 
 function reset_config() {
     echo -e "\n${RED}⚠️  警告：所有配置将被重置为初始状态！${PLAIN}"

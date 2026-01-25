@@ -138,15 +138,64 @@ function set_subscribe() {
     echo "服务已重启。"
 }
 
+# ================= 升级版：面板切换中心 =================
 function install_ui() {
-    echo "正在下载 Metacubexd 面板..."
+    echo -e "\n=== 选择 Web 控制面板 ==="
+    echo -e " 1. ${GREEN}Metacubexd${PLAIN} (原版，功能最全)"
+    echo -e " 2. ${SKYBLUE}Zashboard${PLAIN}  (你图片里的那个，UI更好看)"
+    echo -e " 3. ${YELLOW}Yacd${PLAIN}        (经典旧版，轻量简洁)"
+    echo -e "========================="
+    read -p " 请选择 [1-3] (默认2): " choice
+    
+    case "$choice" in
+        1)
+            # Metacubexd 官方版
+            URL="https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+            DIR_PATTERN="metacubexd-gh-pages"
+            MSG="Metacubexd"
+            ;;
+        3)
+            # Yacd (Yacd-meta)
+            URL="https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip"
+            DIR_PATTERN="Yacd-meta-gh-pages"
+            MSG="Yacd"
+            ;;
+        *)
+            # Zashboard (默认推荐)
+            URL="https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
+            DIR_PATTERN="zashboard-gh-pages"
+            MSG="Zashboard"
+            ;;
+    esac
+
+    echo -e "\n⬇️  正在下载 ${MSG}..."
+    
+    # 清理旧文件
     rm -rf "$WORKDIR/ui"
     mkdir -p "$WORKDIR/ui"
-    wget -q -O /tmp/ui.zip "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
-    unzip -q /tmp/ui.zip -d /tmp/
-    mv /tmp/metacubexd-gh-pages/* "$WORKDIR/ui/"
-    rm -rf /tmp/ui.zip /tmp/metacubexd-gh-pages
-    echo "✅ 面板安装成功！"
+    rm -rf /tmp/ui_extract
+    mkdir -p /tmp/ui_extract
+
+    # 下载
+    wget -q -O /tmp/ui.zip "$URL"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ 下载失败！请检查网络或 GitHub 连接。${PLAIN}"
+        return
+    fi
+
+    # 解压并安装
+    echo "📦 正在解压安装..."
+    unzip -q /tmp/ui.zip -d /tmp/ui_extract
+    
+    # 智能移动文件 (因为解压后的文件夹名字可能带版本号，所以用通配符)
+    # 逻辑：移动解压目录下的第一个文件夹里的所有内容到 ui 目录
+    mv /tmp/ui_extract/*/* "$WORKDIR/ui/"
+
+    # 清理垃圾
+    rm -rf /tmp/ui.zip /tmp/ui_extract
+    
+    echo -e "✅ ${GREEN}${MSG} 面板已安装！${PLAIN}"
+    echo -e "👉 请在浏览器中 ${YELLOW}强制刷新 (Ctrl+F5)${PLAIN} 即可看到新界面。"
 }
 
 function change_secret() {

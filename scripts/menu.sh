@@ -91,13 +91,49 @@ function stop_tproxy() {
 # ================= 功能模块 =================
 
 function set_subscribe() {
-    echo -e "\n=== 设置机场订阅 ==="
-    read -p "请输入订阅链接(http开头): " USER_LINK
-    if [ -z "$USER_LINK" ]; then echo "❌ 输入为空"; return; fi
+    echo -e "\n=== 设置/删除 机场订阅 ==="
     
+    # 读取当前链接（用于显示）
+    CURRENT_URL=$(grep "# \[SUBLINK\]" "$CONFIG_FILE" | awk -F'"' '{print $2}')
+    if [[ "$CURRENT_URL" == "INSERT_LINK_HERE" ]]; then
+        echo -e "当前状态: ${YELLOW}未设置${PLAIN}"
+    else
+        echo -e "当前订阅: ${GREEN}${CURRENT_URL:0:30}...${PLAIN}" # 只显示前30字符
+    fi
+
+    echo -e "\n操作指南:"
+    echo -e "1. 输入新链接 -> 覆盖设置"
+    echo -e "2. 输入 ${RED}clear${PLAIN}  -> 删除订阅"
+    echo -e "3. 直接回车   -> 取消操作"
+    
+    read -p "请输入: " USER_LINK
+
+    # 逻辑 1: 取消
+    if [ -z "$USER_LINK" ]; then 
+        echo "已取消。"; return
+    fi
+
+    # 逻辑 2: 删除 (恢复为占位符)
+    if [ "$USER_LINK" == "clear" ]; then
+        echo "正在清除订阅..."
+        # 恢复为初始占位符，保留 # [SUBLINK] 标记以便下次修改
+        sed -i "s|.*# \[SUBLINK\]|    url: \"INSERT_LINK_HERE\" # [SUBLINK]|" "$CONFIG_FILE"
+        echo "✅ 订阅已删除（恢复初始状态）。"
+        systemctl restart myproxy
+        return
+    fi
+
+    # 逻辑 3: 更新
+    # 简单的格式检查
+    if [[ "$USER_LINK" != http* ]]; then
+        echo "⚠️ 警告: 链接必须以 http 或 https 开头！"
+        return
+    fi
+
+    echo "正在写入新订阅..."
     sed -i "s|.*# \[SUBLINK\]|    url: \"$USER_LINK\" # [SUBLINK]|" "$CONFIG_FILE"
     
-    echo "✅ 订阅已写入，正在重启服务..."
+    echo "✅ 订阅已更新！正在重启服务..."
     systemctl restart myproxy
     echo "服务已重启。"
 }

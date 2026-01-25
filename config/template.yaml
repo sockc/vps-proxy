@@ -1,12 +1,19 @@
 # =========================
-# 1. 基础环境设置
+# 1. 基础环境设置 (安全加固版)
 # =========================
-tproxy-port: 7893
 mixed-port: 7890
-allow-lan: true
-bind-address: "*"
+tproxy-port: 7893
+
+# [安全关键] 关闭局域网共享，只允许本机 (127.0.0.1) 访问
+# 这样外部扫描不到你的代理端口，只有 VPS 内部的 Xray 能连上
+allow-lan: false
+bind-address: "127.0.0.1"
+
 ipv6: false
 log-level: info
+
+# 面板监听 0.0.0.0 以便远程访问
+# 务必修改下面的 secret 密码！
 external-controller: 0.0.0.0:9090
 external-ui: "ui"
 secret: "123456"
@@ -45,7 +52,7 @@ proxy-providers:
       url: http://www.gstatic.com/generate_204
 
 # =========================
-# 4. 策略组 (高度定制化)
+# 4. 策略组 (高级分流)
 # =========================
 proxy-groups:
   # --- 核心：主手动选择 ---

@@ -255,10 +255,20 @@ function show_menu() {
     echo -e "\n  0. 退出"
     echo -e "==============================================================="
     
+    # 底部状态信息栏
     if [[ "$STATUS" == *"${GREEN}"* ]]; then
         echo -e " 📡 面板地址: http://${PUBLIC_IP}:${UI_PORT}/ui"
         echo -e " 🔑 访问密钥: ${GREEN}${UI_SECRET}${PLAIN}"
     fi
+
+    # 订阅状态检查
+    SUB_CHECK=$(grep "# \[SUBLINK\]" "$CONFIG_FILE" | grep "INSERT_LINK_HERE")
+    if [ -z "$SUB_CHECK" ]; then
+        echo -e " 🔗 订阅状态: ${GREEN}已配置${PLAIN}"
+    else
+        echo -e " 🔗 订阅状态: ${YELLOW}未配置 (请执行步骤 5)${PLAIN}"
+    fi
+
     echo -e "==============================================================="
     
     read -p " 选择: " num

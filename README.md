@@ -1,3 +1,6 @@
+🚀 VPS 智能网关脚本
+适合用于中转机，支持订阅地址
+
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/vinchi008/vps-proxy/main/install.sh)
 ```

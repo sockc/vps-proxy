@@ -3,6 +3,9 @@
 
 适合用于中转机，支持订阅地址
 
+建议配合本仓库脚本使用
+https://github.com/vinchi008/xsb-onekey
+
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/vinchi008/vps-proxy/main/install.sh)
 ```

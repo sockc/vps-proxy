@@ -17,8 +17,15 @@ xsb-onekey：用于在落地机（Server）端一键搭建高效的协议环境�
 vps-proxy：用于在中转机（Relay）端运行。将 xsb-onekey 生成的订阅或节点链接填入 vps-proxy，实现“中转 -> 落地”的完美链路
 
 
-📥 安装与使用在你的 VPS 终端执行以下命令即可进入交互菜单：Bashbash <(curl -sL https://raw.githubusercontent.com/sockc/vps-proxy/main/install.sh)
-
+📥 安装与使用在你的 VPS 终端执行以下命令即可进入交互菜单：
+```bash
+Bashbash <(curl -sL https://raw.githubusercontent.com/sockc/vps-proxy/main/install.sh)
+```
+```bash
+wget -O /usr/bin/vps-proxy https://raw.githubusercontent.com/sockc/vps-proxy/main/scripts/menu.sh
+chmod +x /usr/bin/vps-proxy
+vps-proxy
+```
 ⚠️ 注意事项权限需求：请确保以 root 用户运行。环境要求：建议使用 Ubuntu 20.04+ 或 Debian 11+ 系统。防火墙：如果安装了 Web 面板，请记得在 VPS 服务商的控制台开启相应的端口（脚本通常会提示）。
   
   

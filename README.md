@@ -37,7 +37,7 @@ vps-proxy：用于在中转机（Relay）端运行。将 xsb-onekey 生成的订
 
 📥 安装与使用在你的 VPS 终端执行以下命令即可进入交互菜单：
 ```bash
-Bashbash <(curl -sL https://raw.githubusercontent.com/sockc/vps-proxy/main/install.sh)
+bash <(curl -sL https://raw.githubusercontent.com/sockc/vps-proxy/main/install.sh)
 ```
 ```bash
 wget -O /usr/bin/vps-proxy https://raw.githubusercontent.com/sockc/vps-proxy/main/scripts/menu.sh

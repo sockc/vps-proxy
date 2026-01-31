@@ -106,7 +106,7 @@ function set_subscribe() {
     echo -e "2. 输入 ${RED}clear${PLAIN}  -> 删除订阅"
     echo -e "3. 直接回车   -> 取消操作"
     
-    read -p "请输入: " USER_LINK
+    read -p "输入订阅链接: " USER_LINK
 
     # 逻辑 1: 取消
     if [ -z "$USER_LINK" ]; then 

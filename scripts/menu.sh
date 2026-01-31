@@ -142,8 +142,8 @@ function set_subscribe() {
 function install_ui() {
     echo -e "\n=== 选择 Web 控制面板 ==="
     echo -e " 1. ${GREEN}Metacubexd${PLAIN} (原版，功能最全)"
-    echo -e " 2. ${SKYBLUE}Zashboard${PLAIN}  (你图片里的那个，UI更好看)"
-    echo -e " 3. ${YELLOW}Yacd${PLAIN}        (经典旧版，轻量简洁)"
+    echo -e " 2. ${SKYBLUE}Zashboard${PLAIN}  (UI更好看)"
+    echo -e " 3. ${YELLOW}Yacd${PLAIN}        (轻量简洁)"
     echo -e "========================="
     read -p " 请选择 [1-3] (默认2): " choice
     

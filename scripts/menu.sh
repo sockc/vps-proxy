@@ -9,7 +9,14 @@ PLAIN='\033[0m'
 
 WORKDIR="/etc/myproxy"
 CONFIG_FILE="$WORKDIR/config.yaml"
-TEMPLATE_URL="https://raw.githubusercontent.com/sockc/vps-proxy/main/config/template.yaml"
+
+# =========== 核心配置区 (请修改这里) ===========
+# 1. 完整版规则地址 (默认)
+TEMPLATE_FULL="https://raw.githubusercontent.com/vinchi008/vps-proxy/main/config/template.yaml"
+
+# 2. 轻量版规则地址 (请填入你的 URL)
+# ⚠️ 注意：轻量版 yaml 文件中，订阅位置必须包含 # [SUBLINK] 标记，否则无法自动写入订阅
+TEMPLATE_LIGHT="https://raw.githubusercontent.com/vinchi008/vps-proxy/main/config/template_light.yaml" 
 
 # ================= 状态检测函数 =================
 
@@ -31,34 +38,24 @@ check_status() {
 
 # [核心修复] 获取面板信息 - 增强版
 get_panel_info() {
-    # 1. 提取 external-controller 这一行，并去除所有引号
     LINE=$(grep "^external-controller" "$CONFIG_FILE" | tr -d '"' | tr -d "'")
-    
-    # 2. 使用 awk 提取最后一个冒号后面的内容，并只保留数字
-    # 逻辑：以冒号分隔，取最后一个字段($NF)，然后用 grep 提取纯数字
     UI_PORT=$(echo "$LINE" | awk -F: '{print $NF}' | grep -oE '[0-9]+')
-    
-    # 3. 提取密钥 (同样去除引号)
     UI_SECRET=$(grep "^secret" "$CONFIG_FILE" | awk -F: '{print $2}' | tr -d ' "' | tr -d "'")
-    
-    # 4. 获取 IP
     PUBLIC_IP=$(curl -s4m 2 https://api.ip.sb/ip || echo "你的IP")
     
-    # 5. 兜底逻辑：如果提取失败或提取到了0.0.0.0，强制设为 9090
     if [ -z "$UI_PORT" ] || [ "$UI_PORT" == "0.0.0.0" ]; then 
         UI_PORT="9090"
     fi
-    
     if [ -z "$UI_SECRET" ]; then UI_SECRET="未知"; fi
 }
 
 # ================= 核心功能：防火墙 (TProxy) =================
+# ⚠️ 这里的逻辑非常重要，已完整保留
 function start_tproxy() {
     sysctl -w net.ipv4.ip_forward=1 > /dev/null
     IFACE=$(ip route show default | awk '/default/ {print $5}' | head -n1)
     
     iptables -t mangle -N MYPROXY
-    # 直连保留地址
     iptables -t mangle -A MYPROXY -d 0.0.0.0/8 -j RETURN
     iptables -t mangle -A MYPROXY -d 10.0.0.0/8 -j RETURN
     iptables -t mangle -A MYPROXY -d 127.0.0.0/8 -j RETURN
@@ -68,7 +65,6 @@ function start_tproxy() {
     iptables -t mangle -A MYPROXY -d 224.0.0.0/4 -j RETURN
     iptables -t mangle -A MYPROXY -d 240.0.0.0/4 -j RETURN
     
-    # 转发 TCP/UDP
     iptables -t mangle -A MYPROXY -p tcp -j TPROXY --on-port 7893 --tproxy-mark 1
     iptables -t mangle -A MYPROXY -p udp -j TPROXY --on-port 7893 --tproxy-mark 1
     iptables -t mangle -A PREROUTING -j MYPROXY
@@ -91,127 +87,148 @@ function stop_tproxy() {
 
 function set_subscribe() {
     echo -e "\n=== 设置/删除 机场订阅 ==="
-    
-    # 读取当前链接（用于显示）
     CURRENT_URL=$(grep "# \[SUBLINK\]" "$CONFIG_FILE" | awk -F'"' '{print $2}')
     if [[ "$CURRENT_URL" == "INSERT_LINK_HERE" ]]; then
         echo -e "当前状态: ${YELLOW}未设置${PLAIN}"
     else
-        echo -e "当前订阅: ${GREEN}${CURRENT_URL:0:30}...${PLAIN}" # 只显示前30字符
+        echo -e "当前订阅: ${GREEN}${CURRENT_URL:0:30}...${PLAIN}"
     fi
 
     echo -e "\n操作指南:"
     echo -e "1. 输入新链接 -> 覆盖设置"
     echo -e "2. 输入 ${RED}clear${PLAIN}  -> 删除订阅"
     echo -e "3. 直接回车   -> 取消操作"
-    
     read -p "输入订阅链接: " USER_LINK
 
-    # 逻辑 1: 取消
-    if [ -z "$USER_LINK" ]; then 
-        echo "已取消。"; return
-    fi
+    if [ -z "$USER_LINK" ]; then echo "已取消。"; return; fi
 
-    # 逻辑 2: 删除 (恢复为占位符)
     if [ "$USER_LINK" == "clear" ]; then
         echo "正在清除订阅..."
-        # 恢复为初始占位符，保留 # [SUBLINK] 标记以便下次修改
         sed -i "s|.*# \[SUBLINK\]|    url: \"INSERT_LINK_HERE\" # [SUBLINK]|" "$CONFIG_FILE"
-        echo "✅ 订阅已删除（恢复初始状态）。"
+        echo "✅ 订阅已删除。"
         systemctl restart myproxy
         return
     fi
 
-    # 逻辑 3: 更新
-    # 简单的格式检查
     if [[ "$USER_LINK" != http* ]]; then
         echo "⚠️ 警告: 链接必须以 http 或 https 开头！"
         return
     fi
 
-    echo "正在写入新订阅..."
+    echo "正在写入..."
     sed -i "s|.*# \[SUBLINK\]|    url: \"$USER_LINK\" # [SUBLINK]|" "$CONFIG_FILE"
-    
-    echo "✅ 订阅已更新！正在重启服务..."
+    echo "✅ 订阅已更新！正在重启..."
     systemctl restart myproxy
-    echo "服务已重启。"
 }
 
-# ================= 升级版：面板切换中心（已修改） =================
-function install_ui() {
-    echo -e "\n=== Web 控制面板管理 ==="
-    echo -e " 1. 安装/切换 ${GREEN}Metacubexd${PLAIN} (功能最全)"
-    echo -e " 2. 安装/切换 ${SKYBLUE}Zashboard${PLAIN}  (UI更好看)"
-    echo -e " 3. 安装/切换 ${YELLOW}Yacd${PLAIN}        (轻量简洁)"
-    echo -e " 4. ${RED}卸载当前面板${PLAIN}             (清理文件)"
-    echo -e "========================="
-    read -p " 请选择 [1-4] (默认2): " choice
-    
-    # === 新增：卸载逻辑 ===
-    if [ "$choice" == "4" ]; then
-        echo -e "\n🗑️  正在卸载 Web 面板..."
-        rm -rf "$WORKDIR/ui"
-        echo -e "✅ 面板已卸载！访问 IP:端口 将不再显示页面。"
-        return
-    fi
-    # ====================
+# === 新增：分流规则切换中心 ===
+function switch_template() {
+    echo -e "\n=== 切换分流规则模板 ==="
+    echo -e "当前选择可能会覆盖 config.yaml，但脚本会尝试保留你的订阅链接和密码。"
+    echo -e "------------------------------------------------"
+    echo -e " 1. ${GREEN}完整版规则${PLAIN} (包含详细分流，推荐性能强机器)"
+    echo -e " 2. ${YELLOW}轻量版规则${PLAIN} (精简规则，适合小内存机器)"
+    echo -e "------------------------------------------------"
+    read -p "请选择 [1-2]: " t_choice
 
-    case "$choice" in
+    case "$t_choice" in
         1)
-            # Metacubexd 官方版
-            URL="https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
-            DIR_PATTERN="metacubexd-gh-pages"
-            MSG="Metacubexd"
+            TARGET_URL="$TEMPLATE_FULL"
+            NAME="完整版"
             ;;
-        3)
-            # Yacd (Yacd-meta)
-            URL="https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip"
-            DIR_PATTERN="Yacd-meta-gh-pages"
-            MSG="Yacd"
+        2)
+            TARGET_URL="$TEMPLATE_LIGHT"
+            NAME="轻量版"
             ;;
         *)
-            # Zashboard (默认推荐)
-            URL="https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
-            DIR_PATTERN="zashboard-gh-pages"
-            MSG="Zashboard"
+            echo "已取消"
+            return
             ;;
     esac
 
-    echo -e "\n⬇️  正在下载 ${MSG}..."
+    echo -e "\n🔄 正在准备切换至 [${NAME}]..."
+
+    # 1. 备份当前重要信息
+    echo "👉 正在提取当前订阅和密钥..."
+    # 提取订阅链接 (提取引号中的内容)
+    OLD_SUB=$(grep "# \[SUBLINK\]" "$CONFIG_FILE" | awk -F'"' '{print $2}')
+    # 提取密钥
+    OLD_SECRET=$(grep "^secret" "$CONFIG_FILE" | awk -F: '{print $2}' | tr -d ' "' | tr -d "'")
+
+    # 2. 下载新模板
+    echo "⬇️  正在下载新配置文件..."
+    cp "$CONFIG_FILE" "${CONFIG_FILE}.bak_switch" # 临时备份以防下载失败
+    wget -q -O "$CONFIG_FILE" "$TARGET_URL"
+
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ 下载失败！请检查 URL 是否正确。已恢复原配置。${PLAIN}"
+        mv "${CONFIG_FILE}.bak_switch" "$CONFIG_FILE"
+        return
+    fi
+
+    # 3. 还原信息
+    echo "✍️  正在还原个人配置..."
     
-    # 清理旧文件
+    # 还原订阅
+    if [[ -n "$OLD_SUB" ]] && [[ "$OLD_SUB" != "INSERT_LINK_HERE" ]]; then
+        # 寻找新文件中的占位符并替换
+        sed -i "s|.*# \[SUBLINK\]|    url: \"$OLD_SUB\" # [SUBLINK]|" "$CONFIG_FILE"
+        echo "   - 订阅链接已还原"
+    else
+        echo "   - 原配置无订阅，保持默认"
+    fi
+
+    # 还原密码
+    if [[ -n "$OLD_SECRET" ]]; then
+        sed -i "s/^secret:.*/secret: \"$OLD_SECRET\"/" "$CONFIG_FILE"
+        echo "   - 面板密钥已还原"
+    fi
+
+    # 4. 重启
+    echo "✅ 切换成功！正在重启服务..."
+    systemctl restart myproxy
+    echo "🎉 当前运行模式：${NAME}"
+}
+
+function install_ui() {
+    echo -e "\n=== Web 控制面板管理 ==="
+    echo -e " 1. 安装/切换 ${GREEN}Metacubexd${PLAIN}"
+    echo -e " 2. 安装/切换 ${SKYBLUE}Zashboard${PLAIN}"
+    echo -e " 3. 安装/切换 ${YELLOW}Yacd${PLAIN}"
+    echo -e " 4. ${RED}卸载当前面板${PLAIN}"
+    echo -e "========================="
+    read -p " 请选择 [1-4] (默认2): " choice
+    
+    if [ "$choice" == "4" ]; then
+        rm -rf "$WORKDIR/ui"
+        echo "✅ 面板已卸载。"
+        return
+    fi
+
+    case "$choice" in
+        1) URL="https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip";;
+        3) URL="https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip";;
+        *) URL="https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip";;
+    esac
+
+    echo -e "\n⬇️  正在安装..."
     rm -rf "$WORKDIR/ui"
     mkdir -p "$WORKDIR/ui"
     rm -rf /tmp/ui_extract
     mkdir -p /tmp/ui_extract
-
-    # 下载
     wget -q -O /tmp/ui.zip "$URL"
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ 下载失败！请检查网络或 GitHub 连接。${PLAIN}"
-        return
-    fi
-
-    # 解压并安装
-    echo "📦 正在解压安装..."
     unzip -q /tmp/ui.zip -d /tmp/ui_extract
-    
     mv /tmp/ui_extract/*/* "$WORKDIR/ui/"
-
-    # 清理垃圾
     rm -rf /tmp/ui.zip /tmp/ui_extract
-    
-    echo -e "✅ ${GREEN}${MSG} 面板已安装！${PLAIN}"
-    echo -e "👉 请在浏览器中 ${YELLOW}强制刷新 (Ctrl+F5)${PLAIN} 即可看到新界面。"
+    echo -e "✅ 安装完成！请 Ctrl+F5 刷新浏览器。"
 }
 
 function change_secret() {
-    echo -e "\n=== 修改 Web 面板密钥 ==="
-    read -p "请输入新的密码 (不输入则取消): " NEW_SECRET
+    read -p "请输入新的密码: " NEW_SECRET
     if [ -z "$NEW_SECRET" ]; then return; fi
     sed -i "s/^secret:.*/secret: \"$NEW_SECRET\"/" "$CONFIG_FILE"
-    echo -e "✅ 密码已修改，正在重启..."
     systemctl restart myproxy
+    echo "✅ 密码已修改。"
 }
 
 function enable_bbr() {
@@ -231,11 +248,10 @@ function update_geo() {
 
 function manage_swap() {
     echo -e "\n=== 虚拟内存管理 ==="
-    echo "1. 开启 2GB Swap (推荐)"
+    echo "1. 开启 2GB Swap"
     echo "2. 删除 Swap"
     read -p "选择: " s
     if [ "$s" == "1" ]; then
-        if [ -f /swapfile ]; then echo "已存在"; return; fi
         fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
         chmod 600 /swapfile
         mkswap /swapfile
@@ -252,61 +268,32 @@ function manage_swap() {
 }
 
 function reset_config() {
-    echo -e "\n${RED}⚠️  警告：所有配置将被重置为初始状态！${PLAIN}"
+    echo -e "\n${RED}⚠️  警告：重置将丢失所有配置（订阅/密码）！${PLAIN}"
     read -p "确认吗？[y/n]: " c
     if [[ "$c" != "y" ]]; then return; fi
-    
     cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
-    wget -O "$CONFIG_FILE" "$TEMPLATE_URL"
-    if [ $? -eq 0 ]; then
-        echo "✅ 重置成功，正在重启..."
-        systemctl restart myproxy
-        echo "请重新设置订阅。"
-    else
-        echo "❌ 下载模板失败，已恢复备份。"
-        mv "${CONFIG_FILE}.bak" "$CONFIG_FILE"
-    fi
+    wget -O "$CONFIG_FILE" "$TEMPLATE_FULL"
+    systemctl restart myproxy
+    echo "✅ 已重置为【完整版】初始状态。"
 }
 
-# === 新增功能：创建快捷指令 ===
 function create_shortcut() {
-    echo -e "\n=== 创建快捷指令 ==="
-    # 获取当前脚本的绝对路径
     SCRIPT_PATH=$(readlink -f "$0")
-    
-    # 检查是否已经是软链接
-    if [ "$SCRIPT_PATH" == "/usr/bin/vp" ]; then
-        echo -e "${YELLOW}当前脚本已经在执行路径中，无需创建。${PLAIN}"
-        return
-    fi
-
-    echo "正在将 $SCRIPT_PATH 链接到 /usr/bin/vp ..."
     ln -sf "$SCRIPT_PATH" /usr/bin/vp
     chmod +x "$SCRIPT_PATH"
-    
-    if [ -f /usr/bin/vp ]; then
-        echo -e "${GREEN}✅ 快捷指令 'vp' 创建成功！${PLAIN}"
-        echo -e "👉 以后在任何地方输入 ${YELLOW}vp${PLAIN} 即可打开此菜单。"
-    else
-        echo -e "${RED}❌ 创建失败，请确保使用 root 权限运行脚本。${PLAIN}"
-    fi
+    echo -e "✅ 快捷指令 'vp' 创建成功！"
 }
 
 function uninstall_script() {
-    echo -e "\n${RED}⚠️  严重警告：将彻底删除本脚本及服务！${PLAIN}"
-    read -p "确认吗？[y/n]: " c
+    read -p "确认彻底卸载吗？[y/n]: " c
     if [[ "$c" != "y" ]]; then return; fi
-    
-    # 清理快捷方式
     rm -f /usr/bin/vp
-    
     systemctl stop myproxy
     systemctl disable myproxy
     rm -f /etc/systemd/system/myproxy.service
     systemctl daemon-reload
     rm -rf "$WORKDIR"
-    rm -f /usr/bin/vps-proxy # 如果有旧的链接
-    echo "✅ 卸载完成。再见！"
+    echo "✅ 卸载完成。"
     exit 0
 }
 
@@ -316,7 +303,6 @@ function show_menu() {
     get_panel_info
     
     clear
-    # --- 红眼猫 Dashboard (整合状态显示) ---
     echo -e "\033[1;34m =======================================\033[0m"
     echo -e "\033[1;37m     |\__/,|   (\`\ \033[0m    \033[1;33mVPS 智能网关\033[0m"
     echo -e "\033[1;37m   _.|\033[1;31mo o\033[1;37m  |_   ) ) \033[0m    状态: ${STATUS}"
@@ -329,41 +315,33 @@ function show_menu() {
     
     echo -e "\n ${GREEN}[ 配置 ]${PLAIN}"
     echo -e "  5. 设置订阅链接        6. 修改面板密码"
+    echo -e "  7. ${YELLOW}切换分流规则${PLAIN} (完整/轻量)"
     
     echo -e "\n ${GREEN}[ 工具 ]${PLAIN}"
-    echo -e "  7. 管理 Web 面板       8. 开启 BBR 加速"
-    echo -e "  9. 虚拟内存 (Swap)    10. 更新 Geo 数据库"
+    echo -e "  8. 管理 Web 面板       9. 开启 BBR 加速"
+    echo -e " 10. 虚拟内存 (Swap)    11. 更新 Geo 数据库"
+    echo -e " 12. 创建快捷指令 (vp)"
     
     echo -e "\n ${GREEN}[ 维护 ]${PLAIN}"
-    echo -e " 11. 重置配置文件       12. ${RED}彻底卸载脚本${PLAIN}"
-    echo -e " 13. ${SKYBLUE}创建快捷指令 (vp)${PLAIN}"
+    echo -e " 13. 重置配置文件       14. ${RED}彻底卸载脚本${PLAIN}"
     echo -e "\n  0. 退出"
     echo -e "============================================"
     
-    # 底部状态信息栏
     if [[ "$STATUS" == *"${GREEN}"* ]]; then
-        # 检查面板目录是否存在
         if [ -d "$WORKDIR/ui" ]; then
-            echo -e " 📡 面板地址: http://${PUBLIC_IP}:${UI_PORT}/ui"
+            echo -e " 📡 面板: http://${PUBLIC_IP}:${UI_PORT}/ui"
         else
-            echo -e " 📡 面板地址: ${YELLOW}未安装面板 (请执行步骤 7)${PLAIN}"
+            echo -e " 📡 面板: ${YELLOW}未安装${PLAIN}"
         fi
-        echo -e " 🔑 访问密钥: ${GREEN}${UI_SECRET}${PLAIN}"
+        echo -e " 🔑 密钥: ${GREEN}${UI_SECRET}${PLAIN}"
     fi
 
-    # 订阅状态检查
     SUB_CHECK=$(grep "# \[SUBLINK\]" "$CONFIG_FILE" | grep "INSERT_LINK_HERE")
     if [ -z "$SUB_CHECK" ]; then
-        echo -e " 🔗 订阅状态: ${GREEN}已配置${PLAIN}"
+        echo -e " 🔗 订阅: ${GREEN}已配置${PLAIN}"
     else
-        echo -e " 🔗 订阅状态: ${YELLOW}未配置 (请执行步骤 5)${PLAIN}"
+        echo -e " 🔗 订阅: ${YELLOW}未配置${PLAIN}"
     fi
-    
-    # 快捷指令检查提示
-    if [ ! -f /usr/bin/vp ]; then
-         echo -e " 🚀 提示: 建议执行步骤 13 创建 'vp' 快捷指令"
-    fi
-
     echo -e "============================================"
     
     read -p " 选择: " num
@@ -375,18 +353,19 @@ function show_menu() {
         4) journalctl -u myproxy -f ;;
         5) set_subscribe ;;
         6) change_secret ;;
-        7) install_ui ;;
-        8) enable_bbr ;;
-        9) manage_swap ;;
-        10) update_geo ;;
-        11) reset_config ;;
-        12) uninstall_script ;;
-        13) create_shortcut ;;
+        7) switch_template ;; # 新增的切换功能
+        8) install_ui ;;
+        9) enable_bbr ;;
+        10) manage_swap ;;
+        11) update_geo ;;
+        12) create_shortcut ;;
+        13) reset_config ;;
+        14) uninstall_script ;;
         0) exit 0 ;;
         *) echo "无效输入" ;;
     esac
     
-    if [ "$num" != "0" ] && [ "$num" != "4" ] && [ "$num" != "12" ]; then
+    if [ "$num" != "0" ] && [ "$num" != "4" ] && [ "$num" != "14" ]; then
         echo -e "\n按回车返回..."
         read
         show_menu

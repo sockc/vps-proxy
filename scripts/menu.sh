@@ -9,8 +9,7 @@ PLAIN='\033[0m'
 
 WORKDIR="/etc/myproxy"
 CONFIG_FILE="$WORKDIR/config.yaml"
-# 请确保这里是你自己的 GitHub 仓库地址
-TEMPLATE_URL="https://raw.githubusercontent.com/vinchi008/vps-proxy/main/config/template.yaml"
+TEMPLATE_URL="https://raw.githubusercontent.com/sockc/vps-proxy/main/config/template.yaml"
 
 # ================= 状态检测函数 =================
 

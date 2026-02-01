@@ -13,7 +13,10 @@ log-level: info
 mode: rule
 
 # 面板：服务器建议仅本机（需要远程用 SSH 隧道）
-external-controller: 127.0.0.1:9090
+#注释下面本机访问面板
+#external-controller: 127.0.0.1:9090
+#取消注释下面开启远程访问
+external-controller: 0.0.0.0:9090
 external-ui: "ui"
 secret: "CHANGE_ME_TO_A_STRONG_SECRET"
 
@@ -189,7 +192,6 @@ proxy-groups:
     tolerance: 50
     use:
       - UserSub
-    filter: "🇨🇳"
 
   - name: 🇨🇳 国内出口
     type: select
@@ -200,7 +202,6 @@ proxy-groups:
       - ⚡ 自动优选
     use:
       - UserSub
-    filter: "🇨🇳"
 
   - name: 🇨🇳 国内出口-模式
     type: select

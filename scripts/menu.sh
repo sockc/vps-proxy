@@ -138,15 +138,25 @@ function set_subscribe() {
     echo "服务已重启。"
 }
 
-# ================= 升级版：面板切换中心 =================
+# ================= 升级版：面板切换中心（已修改） =================
 function install_ui() {
-    echo -e "\n=== 选择 Web 控制面板 ==="
-    echo -e " 1. ${GREEN}Metacubexd${PLAIN} (原版，功能最全)"
-    echo -e " 2. ${SKYBLUE}Zashboard${PLAIN}  (UI更好看)"
-    echo -e " 3. ${YELLOW}Yacd${PLAIN}        (轻量简洁)"
+    echo -e "\n=== Web 控制面板管理 ==="
+    echo -e " 1. 安装/切换 ${GREEN}Metacubexd${PLAIN} (功能最全)"
+    echo -e " 2. 安装/切换 ${SKYBLUE}Zashboard${PLAIN}  (UI更好看)"
+    echo -e " 3. 安装/切换 ${YELLOW}Yacd${PLAIN}        (轻量简洁)"
+    echo -e " 4. ${RED}卸载当前面板${PLAIN}             (清理文件)"
     echo -e "========================="
-    read -p " 请选择 [1-3] (默认2): " choice
+    read -p " 请选择 [1-4] (默认2): " choice
     
+    # === 新增：卸载逻辑 ===
+    if [ "$choice" == "4" ]; then
+        echo -e "\n🗑️  正在卸载 Web 面板..."
+        rm -rf "$WORKDIR/ui"
+        echo -e "✅ 面板已卸载！访问 IP:端口 将不再显示页面。"
+        return
+    fi
+    # ====================
+
     case "$choice" in
         1)
             # Metacubexd 官方版
@@ -187,8 +197,6 @@ function install_ui() {
     echo "📦 正在解压安装..."
     unzip -q /tmp/ui.zip -d /tmp/ui_extract
     
-    # 智能移动文件 (因为解压后的文件夹名字可能带版本号，所以用通配符)
-    # 逻辑：移动解压目录下的第一个文件夹里的所有内容到 ui 目录
     mv /tmp/ui_extract/*/* "$WORKDIR/ui/"
 
     # 清理垃圾
@@ -261,17 +269,44 @@ function reset_config() {
     fi
 }
 
+# === 新增功能：创建快捷指令 ===
+function create_shortcut() {
+    echo -e "\n=== 创建快捷指令 ==="
+    # 获取当前脚本的绝对路径
+    SCRIPT_PATH=$(readlink -f "$0")
+    
+    # 检查是否已经是软链接
+    if [ "$SCRIPT_PATH" == "/usr/bin/vp" ]; then
+        echo -e "${YELLOW}当前脚本已经在执行路径中，无需创建。${PLAIN}"
+        return
+    fi
+
+    echo "正在将 $SCRIPT_PATH 链接到 /usr/bin/vp ..."
+    ln -sf "$SCRIPT_PATH" /usr/bin/vp
+    chmod +x "$SCRIPT_PATH"
+    
+    if [ -f /usr/bin/vp ]; then
+        echo -e "${GREEN}✅ 快捷指令 'vp' 创建成功！${PLAIN}"
+        echo -e "👉 以后在任何地方输入 ${YELLOW}vp${PLAIN} 即可打开此菜单。"
+    else
+        echo -e "${RED}❌ 创建失败，请确保使用 root 权限运行脚本。${PLAIN}"
+    fi
+}
+
 function uninstall_script() {
     echo -e "\n${RED}⚠️  严重警告：将彻底删除本脚本及服务！${PLAIN}"
     read -p "确认吗？[y/n]: " c
     if [[ "$c" != "y" ]]; then return; fi
+    
+    # 清理快捷方式
+    rm -f /usr/bin/vp
     
     systemctl stop myproxy
     systemctl disable myproxy
     rm -f /etc/systemd/system/myproxy.service
     systemctl daemon-reload
     rm -rf "$WORKDIR"
-    rm -f /usr/bin/vps-proxy
+    rm -f /usr/bin/vps-proxy # 如果有旧的链接
     echo "✅ 卸载完成。再见！"
     exit 0
 }
@@ -284,12 +319,9 @@ function show_menu() {
     clear
     # --- 红眼猫 Dashboard (整合状态显示) ---
     echo -e "\033[1;34m =======================================\033[0m"
-    # 第一行：显示脚本名称 (黄色高亮)
-    echo -e "\033[1;37m      |\__/,|   (\`\ \033[0m    \033[1;33mVPS 智能网关\033[0m"
-    # 第二行：显示运行状态 (继承 STATUS 变量原本的颜色)
-    echo -e "\033[1;37m    _.|\033[1;31mo o\033[1;37m  |_   ) ) \033[0m   状态: ${STATUS}"
-    # 第三行：显示内存使用 (绿色高亮，呼应绿色的爪子线条)
-    echo -e "\033[1;32m  -(((---(((-------- \033[0m   \033[1;32m内存: ${MEM}\033[0m"
+    echo -e "\033[1;37m     |\__/,|   (\`\ \033[0m    \033[1;33mVPS 智能网关\033[0m"
+    echo -e "\033[1;37m   _.|\033[1;31mo o\033[1;37m  |_   ) ) \033[0m    状态: ${STATUS}"
+    echo -e "\033[1;32m  -(((---(((-------- \033[0m    \033[1;32m内存: ${MEM}\033[0m"
     echo -e "\033[1;34m =======================================\033[0m"
     
     echo -e " ${GREEN}[ 核心 ]${PLAIN}"
@@ -300,17 +332,23 @@ function show_menu() {
     echo -e "  5. 设置订阅链接        6. 修改面板密码"
     
     echo -e "\n ${GREEN}[ 工具 ]${PLAIN}"
-    echo -e "  7. 安装 Web 面板       8. 开启 BBR 加速"
+    echo -e "  7. 管理 Web 面板       8. 开启 BBR 加速"
     echo -e "  9. 虚拟内存 (Swap)    10. 更新 Geo 数据库"
     
     echo -e "\n ${GREEN}[ 维护 ]${PLAIN}"
     echo -e " 11. 重置配置文件       12. ${RED}彻底卸载脚本${PLAIN}"
+    echo -e " 13. ${SKYBLUE}创建快捷指令 (vp)${PLAIN}"
     echo -e "\n  0. 退出"
     echo -e "============================================"
     
     # 底部状态信息栏
     if [[ "$STATUS" == *"${GREEN}"* ]]; then
-        echo -e " 📡 面板地址: http://${PUBLIC_IP}:${UI_PORT}/ui"
+        # 检查面板目录是否存在
+        if [ -d "$WORKDIR/ui" ]; then
+            echo -e " 📡 面板地址: http://${PUBLIC_IP}:${UI_PORT}/ui"
+        else
+            echo -e " 📡 面板地址: ${YELLOW}未安装面板 (请执行步骤 7)${PLAIN}"
+        fi
         echo -e " 🔑 访问密钥: ${GREEN}${UI_SECRET}${PLAIN}"
     fi
 
@@ -320,6 +358,11 @@ function show_menu() {
         echo -e " 🔗 订阅状态: ${GREEN}已配置${PLAIN}"
     else
         echo -e " 🔗 订阅状态: ${YELLOW}未配置 (请执行步骤 5)${PLAIN}"
+    fi
+    
+    # 快捷指令检查提示
+    if [ ! -f /usr/bin/vp ]; then
+         echo -e " 🚀 提示: 建议执行步骤 13 创建 'vp' 快捷指令"
     fi
 
     echo -e "============================================"
@@ -339,6 +382,7 @@ function show_menu() {
         10) update_geo ;;
         11) reset_config ;;
         12) uninstall_script ;;
+        13) create_shortcut ;;
         0) exit 0 ;;
         *) echo "无效输入" ;;
     esac

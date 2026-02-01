@@ -12,7 +12,7 @@ ipv6: false
 log-level: info
 mode: rule
 
-# 面板：服务器建议仅本机，远程用 SSH 隧道
+# 面板：服务器建议仅本机（需要远程用 SSH 隧道）
 external-controller: 127.0.0.1:9090
 external-ui: "ui"
 secret: "CHANGE_ME_TO_A_STRONG_SECRET"
@@ -53,16 +53,18 @@ proxy-providers:
       url: http://www.gstatic.com/generate_204
 
 # =========================
-# 4. 规则集（RULE-SET 依赖）
+# 4. 规则集（全部使用 yaml/text；不使用 mrs）
 # =========================
 rule-providers:
+  # ADBlock：用 Loyalsoldier 的 reject.txt（text/domain）
+  # 你的规则里仍然是 RULE-SET,ADBlock,广告拦截
   ADBlock:
     type: http
     behavior: domain
-    format: mrs
+    format: text
     interval: 86400
-    url: https://adrules.top/adrules-mihomo.mrs
-    path: ./ruleset/ADBlock.mrs
+    url: "https://raw.githubusercontent.com/Loyalsoldier/clash-rules/release/reject.txt"
+    path: ./ruleset/ADBlock.txt
 
   AdditionalFilter:
     type: http
@@ -136,33 +138,33 @@ rule-providers:
     url: https://gcore.jsdelivr.net/gh/powerfullz/override-rules@master/ruleset/FirebaseCloudMessaging.list
     path: ./ruleset/GoogleFCM.list
 
-  # CN：用于“国内也走代理（🇨🇳出口）”
+  # 国内出口：用 meta-rules-dat 的 yaml（mihomo 官方示例就这么用）
   cn_domain:
     type: http
     behavior: domain
-    format: mrs
+    format: yaml
     interval: 86400
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"
-    path: ./ruleset/cn_domain.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.yaml"
+    path: ./ruleset/cn_domain.yaml
 
   cn_ip:
     type: http
     behavior: ipcidr
-    format: mrs
+    format: yaml
     interval: 86400
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"
-    path: ./ruleset/cn_ip.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.yaml"
+    path: ./ruleset/cn_ip.yaml
 
-  geolocation-!cn:
+  geolocation_not_cn:
     type: http
     behavior: domain
-    format: mrs
+    format: yaml
     interval: 86400
-    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.mrs"
-    path: ./ruleset/geolocation-!cn.mrs
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.yaml"
+    path: ./ruleset/geolocation_not_cn.yaml
 
 # =========================
-# 5. 策略组（每组都可直接选具体节点）
+# 5. 策略组（每组可直接选具体节点 + 🇨🇳 仅筛 🇨🇳）
 # =========================
 proxy-groups:
   - name: 🚀 节点选择
@@ -180,7 +182,6 @@ proxy-groups:
     use:
       - UserSub
 
-  # 只要 🇨🇳 的国内自动优选/出口（并允许手动切 DIRECT）
   - name: 🇨🇳 国内自动优选
     type: url-test
     url: http://www.gstatic.com/generate_204
@@ -209,145 +210,149 @@ proxy-groups:
       - 🚀 节点选择
       - ⚡ 自动优选
 
-  # 业务组：都能直接选任意节点（use: UserSub）
+  # === 业务组：都能直接选具体节点 ===
   - name: 📹 YouTube
     type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择, 🇨🇳 国内出口]
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
+      - 🇨🇳 国内出口
     use: [UserSub]
 
   - name: 🎵 Spotify
     type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择, 🇨🇳 国内出口]
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
+      - 🇨🇳 国内出口
     use: [UserSub]
 
   - name: 💳 PayPal
     type: select
-    proxies: [DIRECT, 🚀 节点选择, ⚡ 自动优选]
+    proxies:
+      - DIRECT
+      - 🚀 节点选择
+      - ⚡ 自动优选
     use: [UserSub]
 
   - name: 🤖 AI & Copilot
     type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
     use: [UserSub]
 
   - name: 📺 其他流媒体
     type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
     use: [UserSub]
 
   - name: 💰 虚拟货币
     type: select
-    proxies: [DIRECT, 🚀 节点选择, ⚡ 自动优选]
+    proxies:
+      - DIRECT
+      - 🚀 节点选择
+      - ⚡ 自动优选
     use: [UserSub]
 
   - name: 📲 电报消息
     type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 🐦 Twitter(X)
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 🍎 Apple
-    type: select
-    proxies: [DIRECT, 🇨🇳 国内出口, 🚀 节点选择, ⚡ 自动优选]
-    use: [UserSub]
-
-  - name: 📦 PikPak
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 🚄 Speedtest
-    type: select
-    proxies: [DIRECT, 🇨🇳 国内出口, 🚀 节点选择, ⚡ 自动优选]
-    use: [UserSub]
-
-  - name: 🧑‍💻 开发者资源
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 📚 学术资源
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 🎮 游戏平台
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择, 🇨🇳 国内出口]
-    use: [UserSub]
-
-  - name: 🎴 巴哈姆特
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 📺 哔哩哔哩
-    type: select
-    proxies: [DIRECT, 🇨🇳 国内出口, 🚀 节点选择]
-    use: [UserSub]
-
-  # 规则集分组
-  - name: 广告拦截
-    type: select
-    proxies: [REJECT, DIRECT]
-
-  - name: 搜狗输入
-    type: select
-    proxies: [DIRECT, REJECT]
-
-  - name: Truth Social
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: 静态资源
-    type: select
-    proxies: [DIRECT, 🚀 节点选择, ⚡ 自动优选]
-    use: [UserSub]
-
-  - name: E-Hentai
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: TikTok
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: Steam修复
-    type: select
-    proxies: [DIRECT, 🚀 节点选择, ⚡ 自动优选]
-    use: [UserSub]
-
-  - name: Play商店修复
-    type: select
-    proxies: [DIRECT, ⚡ 自动优选, 🚀 节点选择]
-    use: [UserSub]
-
-  - name: FCM推送
-    type: select
-    proxies: [DIRECT, 🚀 节点选择, ⚡ 自动优选]
-    use: [UserSub]
-
-  - name: 新浪微博
-    type: select
-    proxies: [DIRECT, 🇨🇳 国内出口, 🚀 节点选择]
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
     use: [UserSub]
 
   - name: 🐟 漏网之鱼
     type: select
-    proxies: [🚀 节点选择, ⚡ 自动优选, 🇨🇳 国内出口-模式, DIRECT]
+    proxies:
+      - 🚀 节点选择
+      - ⚡ 自动优选
+      - 🇨🇳 国内出口-模式
+      - DIRECT
+    use: [UserSub]
+
+  # === 规则类分组（不需要展开节点）===
+  - name: 广告拦截
+    type: select
+    proxies:
+      - REJECT
+      - REJECT-DROP
+      - DIRECT
+
+  - name: 搜狗输入
+    type: select
+    proxies:
+      - REJECT-DROP
+      - DIRECT
+
+  - name: Truth Social
+    type: select
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
+    use: [UserSub]
+
+  - name: 静态资源
+    type: select
+    proxies:
+      - DIRECT
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use: [UserSub]
+
+  - name: E-Hentai
+    type: select
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
+    use: [UserSub]
+
+  - name: TikTok
+    type: select
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
+    use: [UserSub]
+
+  - name: Steam修复
+    type: select
+    proxies:
+      - DIRECT
+      - 🚀 节点选择
+      - ⚡ 自动优选
+    use: [UserSub]
+
+  - name: Play商店修复
+    type: select
+    proxies:
+      - DIRECT
+      - ⚡ 自动优选
+      - 🚀 节点选择
+    use: [UserSub]
+
+  - name: FCM推送
+    type: select
+    proxies:
+      - DIRECT
+      - 🚀 节点选择
+      - ⚡ 自动优选
     use: [UserSub]
 
 # =========================
-# 6. 分流规则（国内不直连：走 🇨🇳 国内出口-模式）
+# 6. 分流规则（国内不直连：CN -> 🇨🇳 国内出口-模式）
 # =========================
 rules:
+  # 管理口/自环直连
   - DST-PORT,22,DIRECT
   - DST-PORT,9090,DIRECT
   - DST-PORT,7890,DIRECT
@@ -377,38 +382,36 @@ rules:
   - RULE-SET,GoogleFCM,FCM推送
   - DOMAIN,services.googleapis.cn,Play商店修复
 
-  # 你原本的站点分流（扩展了一些，但不重复）
-  - GEOSITE,weibo,新浪微博
-  - GEOSITE,paypal,💳 PayPal
-  - GEOSITE,apple,🍎 Apple
-  - GEOSITE,twitter,🐦 Twitter(X)
-
-  - GEOSITE,telegram,📲 电报消息
-  - GEOIP,telegram,📲 电报消息
-
+  # 业务分流（保持你原逻辑）
   - GEOSITE,youtube,📹 YouTube
   - GEOSITE,spotify,🎵 Spotify
+  - GEOSITE,paypal,💳 PayPal
+
+  - GEOSITE,category-ai-!cn,🤖 AI & Copilot
+  - GEOSITE,openai,🤖 AI & Copilot
+  - GEOSITE,anthropic,🤖 AI & Copilot
+  - GEOSITE,google-gemini,🤖 AI & Copilot
+  - GEOSITE,github,🤖 AI & Copilot
+
   - GEOSITE,netflix,📺 其他流媒体
   - GEOSITE,disney,📺 其他流媒体
   - GEOSITE,hbo,📺 其他流媒体
   - GEOSITE,category-porn,📺 其他流媒体
 
-  - GEOSITE,pikpak,📦 PikPak
-  - GEOSITE,ookla-speedtest,🚄 Speedtest
-  - GEOSITE,bahamut,🎴 巴哈姆特
-  - GEOSITE,bilibili,📺 哔哩哔哩
-
-  - GEOSITE,category-dev,🧑‍💻 开发者资源
-  - GEOSITE,category-scholar-!cn,📚 学术资源
-  - GEOSITE,category-games,🎮 游戏平台
   - GEOSITE,category-cryptocurrency,💰 虚拟货币
-  - GEOSITE,microsoft,🚀 节点选择
-  - GEOSITE,google,🚀 节点选择
+  - GEOSITE,binance,💰 虚拟货币
+  - GEOSITE,okx,💰 虚拟货币
 
-  # 国内：不直连，全部走“国内出口-模式”（你可在面板切 DIRECT）
+  - GEOSITE,telegram,📲 电报消息
+  - GEOIP,telegram,📲 电报消息
+
+  - GEOSITE,google,🚀 节点选择
+  - GEOSITE,microsoft,🚀 节点选择
+
+  # 国内：不直连 -> 走“国内出口-模式”（你可在面板切 DIRECT）
   - RULE-SET,cn_domain,🇨🇳 国内出口-模式
   - RULE-SET,cn_ip,🇨🇳 国内出口-模式
 
   # 兜底
-  - RULE-SET,geolocation-!cn,🐟 漏网之鱼
+  - RULE-SET,geolocation_not_cn,🐟 漏网之鱼
   - MATCH,🐟 漏网之鱼

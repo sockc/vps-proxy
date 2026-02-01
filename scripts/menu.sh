@@ -322,7 +322,7 @@ function show_menu() {
     
     echo -e "\n ${GREEN}[ 配置 ]${PLAIN}"
     echo -e "  5. 设置订阅链接        6. 修改面板密码"
-    echo -e "  7. 切换分流规则        8. ${YELLOW}开启/关闭 面板远程访问${PLAIN}"
+    echo -e "  7. 切换分流规则        8. ${YELLOW}开启/关闭 面板公网访问${PLAIN}"
     
     echo -e "\n ${GREEN}[ 工具 ]${PLAIN}"
     echo -e "  9. 管理 Web 面板      10. 开启 BBR 加速"
@@ -330,7 +330,7 @@ function show_menu() {
     echo -e " 13. 创建快捷指令 (vp)"
     
     echo -e "\n ${GREEN}[ 维护 ]${PLAIN}"
-    echo -e " 14. 重置配置文件       15. ${RED}彻底卸载脚本${PLAIN}"
+    echo -e " 14. 重置配置       15. ${RED}卸载${PLAIN}"
     echo -e "\n  0. 退出"
     echo -e "============================================"
     

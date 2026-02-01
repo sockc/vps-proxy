@@ -12,11 +12,11 @@ CONFIG_FILE="$WORKDIR/config.yaml"
 
 # =========== 核心配置区 (请修改这里) ===========
 # 1. 完整版规则地址 (默认)
-TEMPLATE_FULL="https://raw.githubusercontent.com/vinchi008/vps-proxy/main/config/template.yaml"
+TEMPLATE_FULL="https://raw.githubusercontent.com/sockc/vps-proxy/main/config/template.yaml"
 
 # 2. 轻量版规则地址 (请填入你的 URL)
 # ⚠️ 注意：轻量版 yaml 文件中，订阅位置必须包含 # [SUBLINK] 标记，否则无法自动写入订阅
-TEMPLATE_LIGHT="https://raw.githubusercontent.com/vinchi008/vps-proxy/main/config/template_light.yaml" 
+TEMPLATE_LIGHT="https://raw.githubusercontent.com/sockc/vps-proxy/main/config/template_light.yaml" 
 
 # ================= 状态检测函数 =================
 
@@ -272,7 +272,7 @@ function reset_config() {
     read -p "确认吗？[y/n]: " c
     if [[ "$c" != "y" ]]; then return; fi
     cp "$CONFIG_FILE" "${CONFIG_FILE}.bak"
-    wget -O "$CONFIG_FILE" "$TEMPLATE_FULL"
+    wget -O "$CONFIG_FILE" "$TEMPLATE_LIGHT"
     systemctl restart myproxy
     echo "✅ 已重置为【完整版】初始状态。"
 }
@@ -315,7 +315,7 @@ function show_menu() {
     
     echo -e "\n ${GREEN}[ 配置 ]${PLAIN}"
     echo -e "  5. 设置订阅链接        6. 修改面板密码"
-    echo -e "  7. ${YELLOW}切换分流规则${PLAIN} (完整/轻量)"
+    echo -e "  7. ${YELLOW}切换规则${PLAIN} (完整/轻量)"
     
     echo -e "\n ${GREEN}[ 工具 ]${PLAIN}"
     echo -e "  8. 管理 Web 面板       9. 开启 BBR 加速"
@@ -323,7 +323,7 @@ function show_menu() {
     echo -e " 12. 创建快捷指令 (vp)"
     
     echo -e "\n ${GREEN}[ 维护 ]${PLAIN}"
-    echo -e " 13. 重置配置文件       14. ${RED}彻底卸载脚本${PLAIN}"
+    echo -e " 13. 重置配置       14. ${RED}卸载脚本${PLAIN}"
     echo -e "\n  0. 退出"
     echo -e "============================================"
     

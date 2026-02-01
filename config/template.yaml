@@ -185,31 +185,14 @@ proxy-groups:
     use:
       - UserSub
 
-  - name: 🇨🇳 国内自动优选
-    type: url-test
-    url: http://www.gstatic.com/generate_204
-    interval: 300
-    tolerance: 50
-    use:
-      - UserSub
-
   - name: 🇨🇳 国内出口
     type: select
     proxies:
-      - 🇨🇳 国内自动优选
       - DIRECT
       - 🚀 节点选择
       - ⚡ 自动优选
     use:
       - UserSub
-
-  - name: 🇨🇳 国内出口-模式
-    type: select
-    proxies:
-      - 🇨🇳 国内出口
-      - DIRECT
-      - 🚀 节点选择
-      - ⚡ 自动优选
 
   # === 业务组：都能直接选具体节点 ===
   - name: 📹 YouTube
@@ -218,7 +201,6 @@ proxy-groups:
       - DIRECT
       - ⚡ 自动优选
       - 🚀 节点选择
-      - 🇨🇳 国内出口
     use: [UserSub]
 
   - name: 🎵 Spotify
@@ -227,7 +209,6 @@ proxy-groups:
       - DIRECT
       - ⚡ 自动优选
       - 🚀 节点选择
-      - 🇨🇳 国内出口
     use: [UserSub]
 
   - name: 💳 PayPal
@@ -275,7 +256,6 @@ proxy-groups:
     proxies:
       - 🚀 节点选择
       - ⚡ 自动优选
-      - 🇨🇳 国内出口-模式
       - DIRECT
     use: [UserSub]
 
@@ -410,8 +390,8 @@ rules:
   - GEOSITE,microsoft,🚀 节点选择
 
   # 国内：不直连 -> 走“国内出口-模式”（你可在面板切 DIRECT）
-  - RULE-SET,cn_domain,🇨🇳 国内出口-模式
-  - RULE-SET,cn_ip,🇨🇳 国内出口-模式
+  - RULE-SET,cn_domain,🇨🇳 国内出口
+  - RULE-SET,cn_ip,🇨🇳 国内出口
 
   # 兜底
   - RULE-SET,geolocation_not_cn,🐟 漏网之鱼
